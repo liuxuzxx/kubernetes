@@ -40,6 +40,7 @@ import (
 
 const maxProbeRetries = 3
 
+// 看这个注释，应该就是处理liveness/readiness/startup探针的逻辑代码了，先从probe这个地方开始看起来
 // Prober helps to check the liveness/readiness/startup of a container.
 type prober struct {
 	exec   execprobe.Prober
