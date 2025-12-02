@@ -28,3 +28,5 @@ probe.Result: 成功/失败/未知等结果
 string: 是结果内容，http是response,exec是执行结果,grpc是返回的response,tcp是空字符串
 error: 就是返回的错误对象
 ```
+
+目前的疑惑是:这些 probe 都已经定义了，应该如何使用，或者是用来干嘛的?这个是我们下面的阅读需求点

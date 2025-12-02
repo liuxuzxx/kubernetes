@@ -24,6 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// 下面这两个方法其实是处理我们写端口的时候，是写的name还是直接是数字
+// 因为在k8s的资源:Pod中，或者是service中，对应的给port都会有一个name,所以在使用的时候就会产生两个操作:直接写数字端口，或者是写端口对应的name
 func ResolveContainerPort(param intstr.IntOrString, container *v1.Container) (int, error) {
 	port := -1
 	var err error

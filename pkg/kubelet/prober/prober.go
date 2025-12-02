@@ -81,6 +81,7 @@ func (pb *prober) recordContainerEvent(ctx context.Context, pod *v1.Pod, contain
 }
 
 // probe probes the container.
+// 开始执行探针的逻辑
 func (pb *prober) probe(ctx context.Context, probeType probeType, pod *v1.Pod, status v1.PodStatus, container v1.Container, containerID kubecontainer.ContainerID) (results.Result, error) {
 	var probeSpec *v1.Probe
 	switch probeType {
@@ -95,6 +96,7 @@ func (pb *prober) probe(ctx context.Context, probeType probeType, pod *v1.Pod, s
 	}
 
 	logger := klog.FromContext(ctx)
+	//1. 如果探针配置为nil,则直接返回成功
 	if probeSpec == nil {
 		logger.Info("Probe is nil", "probeType", probeType, "pod", klog.KObj(pod), "podUID", pod.UID, "containerName", container.Name)
 		return results.Success, nil
@@ -176,6 +178,7 @@ func (pb *prober) runProbe(ctx context.Context, probeType probeType, p *v1.Probe
 		return pb.http.Probe(req, timeout)
 
 	case p.TCPSocket != nil:
+		//TCP这个需要首先去容器内确认下端口是否存在
 		port, err := probe.ResolveContainerPort(p.TCPSocket.Port, &container)
 		if err != nil {
 			logger.V(4).Info("TCP-Probe failed to resolve port", "error", err)
@@ -214,6 +217,7 @@ type execInContainer struct {
 
 func (pb *prober) newExecInContainer(ctx context.Context, pod *v1.Pod, container v1.Container, containerID kubecontainer.ContainerID, cmd []string, timeout time.Duration) exec.Cmd {
 	return &execInContainer{
+		// 这个是在容器内运行，这个属于runtime块的内容了,不在本地阅读的范围内
 		run:       func() ([]byte, error) { return pb.runner.RunInContainer(ctx, containerID, cmd, timeout) },
 		pod:       pod,
 		container: container,
