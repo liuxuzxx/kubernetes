@@ -178,7 +178,6 @@ func (pb *prober) runProbe(ctx context.Context, probeType probeType, p *v1.Probe
 		return pb.http.Probe(req, timeout)
 
 	case p.TCPSocket != nil:
-		//TCP这个需要首先去容器内确认下端口是否存在
 		port, err := probe.ResolveContainerPort(p.TCPSocket.Port, &container)
 		if err != nil {
 			logger.V(4).Info("TCP-Probe failed to resolve port", "error", err)

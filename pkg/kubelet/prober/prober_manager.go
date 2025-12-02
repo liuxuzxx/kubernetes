@@ -182,6 +182,7 @@ func getRestartableInitContainers(pod *v1.Pod) []v1.Container {
 	return restartableInitContainers
 }
 
+// 看着方法是新增Pod的时候，增加三种Probe:startup,readiness,liveness
 func (m *manager) AddPod(ctx context.Context, pod *v1.Pod) {
 	m.workerLock.Lock()
 	defer m.workerLock.Unlock()

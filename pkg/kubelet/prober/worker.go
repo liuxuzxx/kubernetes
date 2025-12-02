@@ -155,6 +155,7 @@ func newWorker(
 }
 
 // run periodically probes the container.
+// 这个地方好像是开启了一个定时类型的东西来做一个周期性的探测
 func (w *worker) run(ctx context.Context) {
 	logger := klog.FromContext(ctx)
 	probeTickerPeriod := time.Duration(w.spec.PeriodSeconds) * time.Second
