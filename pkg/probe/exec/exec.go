@@ -47,6 +47,7 @@ type execProber struct{}
 // Probe executes a command to check the liveness/readiness of container
 // from executing a command. Returns the Result status, command output, and
 // errors if any.
+// 这个是命令的Probe，其实就是执行一个命令，然后返回结果
 func (pr execProber) Probe(e exec.Cmd) (probe.Result, string, error) {
 	var dataBuffer bytes.Buffer
 	writer := ioutils.LimitWriter(&dataBuffer, maxReadLength)
