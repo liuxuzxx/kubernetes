@@ -745,3 +745,8 @@ func VolumesInUse(syncedFunc func() bool, // typically Kubelet.volumeManager.Rec
 		return nil
 	}
 }
+
+//
+// 看了下这个文件,首先文件名字:setter中文意思是:二传手的意思
+// 所以可以看到这个文件里面定义了一系列的函数,返回值都是setter类型
+// 这些函数都是获取Node的信息的:磁盘,CPU,内存,版本信息,镜像信息,k8s组件信息等等

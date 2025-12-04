@@ -672,6 +672,8 @@ func (kl *Kubelet) setNodeStatus(ctx context.Context, node *v1.Node) {
 
 // defaultNodeStatusFuncs is a factory that generates the default set of
 // setNodeStatus funcs
+//
+// 这个地方就是kubelet获取node状态的函数执行
 func (kl *Kubelet) defaultNodeStatusFuncs() []func(context.Context, *v1.Node) error {
 	var setters []func(ctx context.Context, n *v1.Node) error
 	setters = append(setters,
@@ -686,6 +688,7 @@ func (kl *Kubelet) defaultNodeStatusFuncs() []func(context.Context, *v1.Node) er
 		nodestatus.NodeFeatures(kl.runtimeState.runtimeFeatures),
 	)
 
+	// 这块是资源:内存,磁盘,PID使用,是否Ready,Volumes的使用
 	setters = append(setters,
 		nodestatus.MemoryPressureCondition(kl.clock.Now, kl.evictionManager.IsUnderMemoryPressure, kl.recordNodeStatusEvent),
 		nodestatus.DiskPressureCondition(kl.clock.Now, kl.evictionManager.IsUnderDiskPressure, kl.recordNodeStatusEvent),

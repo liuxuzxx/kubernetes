@@ -155,6 +155,9 @@ func (pm *basicManager) UpdatePod(pod *v1.Pod) {
 
 // updateMetrics updates the metrics surfaced by the pod manager.
 // oldPod or newPod may be nil to signify creation or deletion.
+// ephemeralContainers属性是一个临时容器，主要用来调试的,例如进入一个crash问题的容器，这个时候
+// Pod没有起来，但是需要查看是什么问题，是网络，还是config等问题，可以使用ephemeralContainers属性
+// 对应kubectl debug命令,但是加上去之后，只有等待重启的时候才会消失,无法删除或者是自动删除
 func updateMetrics(oldPod, newPod *v1.Pod) {
 	var numEC int
 	if oldPod != nil {
@@ -201,6 +204,8 @@ func (pm *basicManager) RemovePod(pod *v1.Pod) {
 	defer pm.lock.Unlock()
 	podFullName := kubecontainer.GetPodFullName(pod)
 	// It is safe to type convert here due to the IsMirrorPod guard.
+	// 这个是静态Pod才会是Mirror Pod.静态Pod其实就是放置在: node的 /etc/kubernetes/manifests 目录下的Pod
+	// kubelet会定期扫描这个目录下面的Pod的配置文件，然后生成静态Pod对象,然后也会创建一个Mirror Pod对象,便于查看
 	if kubetypes.IsMirrorPod(pod) {
 		mirrorPodUID := kubetypes.MirrorPodUID(pod.UID)
 		delete(pm.mirrorPodByUID, mirrorPodUID)

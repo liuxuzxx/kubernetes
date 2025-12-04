@@ -2447,6 +2447,7 @@ func (kl *Kubelet) getPodsToSync() []*v1.Pod {
 //
 // deletePod returns an error if not all sources are ready or the pod is not
 // found in the runtime cache.
+// 删除Pod的逻辑
 func (kl *Kubelet) deletePod(pod *v1.Pod) error {
 	if pod == nil {
 		return fmt.Errorf("deletePod does not allow nil pod")
@@ -2571,6 +2572,8 @@ func (kl *Kubelet) syncLoop(ctx context.Context, updates <-chan kubetypes.PodUpd
 //   - housekeepingCh: trigger cleanup of pods
 //   - health manager: sync pods that have failed or in which one or more
 //     containers have failed health checks
+//
+// 这个地方应该就是Pod生命周期的操作方法
 func (kl *Kubelet) syncLoopIteration(ctx context.Context, configCh <-chan kubetypes.PodUpdate, handler SyncHandler,
 	syncCh <-chan time.Time, housekeepingCh <-chan time.Time, plegCh <-chan *pleg.PodLifecycleEvent) bool {
 	logger := klog.FromContext(ctx)
