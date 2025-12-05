@@ -560,6 +560,7 @@ func MemoryPressureCondition(nowFunc func() time.Time, // typically Kubelet.cloc
 		var condition *v1.NodeCondition
 
 		// Check if NodeMemoryPressure condition already exists and if it does, just pick it up for update.
+		// 这个地方使用for循环，因该是不是很多，其实在不是很多数据的情况下,for循环能够利用CPU的缓存机制,提升性能的
 		for i := range node.Status.Conditions {
 			if node.Status.Conditions[i].Type == v1.NodeMemoryPressure {
 				condition = &node.Status.Conditions[i]
@@ -673,15 +674,34 @@ func PIDPressureCondition(nowFunc func() time.Time, // typically Kubelet.clock.N
 }
 
 // DiskPressureCondition returns a Setter that updates the v1.NodeDiskPressure condition on the node.
+// 我们就先以一个压力检测的点作为入口的追踪例子,反正后面的资源检测都是相同的逻辑
+// 这种传递的三个参数都是函数类型的也是有点特色阿.
+//
+// 1. nowFunc: 无参函数,然后返回值是time.Time类型
+// 2. pressureFunc: 无参函数,然后返回值是bool类型
+// 3. recordEventFunc: 两个string类型参数,返回值为void
+//
+// 评价下这个函数的代码吧
+// 1. 首先这个函数使用了函数或者说闭包或者是lambda比到达是这类的FunctionInterce作为参数
+// 2. 接着这个函数没有任何的业务逻辑,仅仅是根据传入的函数执行的结果做一些状态的修改或者是转换
 func DiskPressureCondition(nowFunc func() time.Time, // typically Kubelet.clock.Now
 	pressureFunc func() bool, // typically Kubelet.evictionManager.IsUnderDiskPressure
 	recordEventFunc func(eventType, event string), // typically Kubelet.recordNodeStatusEvent
 ) Setter {
 	return func(ctx context.Context, node *v1.Node) error {
+		// 1. 其实获取下当前的时间转成自己内部的一个struct
 		currentTime := metav1.NewTime(nowFunc())
 		var condition *v1.NodeCondition
 
 		// Check if NodeDiskPressure condition already exists and if it does, just pick it up for update.
+		// NodeCondition是类似于下面的数据信息,下面是一个含有一个NodeCondition的数组的yaml展示例子
+		// conditions:
+		// - lastHeartbeatTime: "2023-10-10T09:21:28Z"
+		//   lastTransitionTime: "2023-10-10T09:21:28Z"
+		//   message: kubelet has no disk pressure
+		//   reason: KubeletHasNoDiskPressure
+		//   status: "False"
+		//   type: DiskPressure
 		for i := range node.Status.Conditions {
 			if node.Status.Conditions[i].Type == v1.NodeDiskPressure {
 				condition = &node.Status.Conditions[i]
@@ -710,6 +730,11 @@ func DiskPressureCondition(nowFunc func() time.Time, // typically Kubelet.clock.
 		// condition.Status != v1.ConditionTrue or
 		// condition.Status != v1.ConditionFalse in the conditions below depending on whether
 		// the kubelet is under disk pressure or not.
+		// 下面这段处理磁盘压力的逻辑其实很简单:
+		// 1. 执行函数pressureFunc()的结果作为判断的条件,如果存在磁盘压力，然后condition的status不是True(代表存在压力的意思)
+		//    则需要修改状态以及Reason和Message这些信息，发送下recordEvent事件
+		// 2. 如果不存在磁盘压力,则需要修改转台为False,并且发送下recordEvent事件
+		// 3. 上面两个操作都需要在需要执行反转操作的时候才需要执行.就是true变为false或者是false变成true的时候才需要执行
 		if pressureFunc() {
 			if condition.Status != v1.ConditionTrue {
 				condition.Status = v1.ConditionTrue
@@ -726,6 +751,7 @@ func DiskPressureCondition(nowFunc func() time.Time, // typically Kubelet.clock.
 			recordEventFunc(v1.EventTypeNormal, "NodeHasNoDiskPressure")
 		}
 
+		//如果是新的Condition,则需要追加到node的status.conditions数组中
 		if newCondition {
 			node.Status.Conditions = append(node.Status.Conditions, *condition)
 		}

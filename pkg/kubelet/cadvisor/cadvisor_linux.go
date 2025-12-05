@@ -80,6 +80,10 @@ func init() {
 	}
 }
 
+// 这个地方的cAdvisor的实现，算是找到了所有监控和资源信息的获取的地方
+// 其实上面的eeviction以及kube node status这些，其实都以根据这个cAdvisor获取到的资源信息进行判断逻辑处理的
+// 这样子做的好处就是,所有的监控数据资源都从一个地方获取,避免逻辑的重复实现
+//
 // New creates a new cAdvisor Interface for linux systems.
 func New(imageFsInfoProvider ImageFsInfoProvider, rootPath string, cgroupRoots []string, usingLegacyStats, localStorageCapacityIsolation bool) (Interface, error) {
 	sysFs := sysfs.NewRealSysFs()

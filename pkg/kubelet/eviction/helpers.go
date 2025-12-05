@@ -83,6 +83,9 @@ var (
 
 func init() {
 	// map eviction signals to node conditions
+	// 下面这个Map的意思其实是说:
+	// 如果出现:SignalImageFsAvailable,SignalContainerFsAvailable,SignalNodeFsAvailabel,
+	// SignalImageFsInodesFree,SignalNodeFsInodeFree,SignalContainerFsInodesFree ==> NodeDiskPressure(就认为出现了磁盘压力)
 	signalToNodeCondition = map[evictionapi.Signal]v1.NodeConditionType{}
 	signalToNodeCondition[evictionapi.SignalMemoryAvailable] = v1.NodeMemoryPressure
 	signalToNodeCondition[evictionapi.SignalAllocatableMemoryAvailable] = v1.NodeMemoryPressure
@@ -1042,6 +1045,8 @@ func thresholdsMetGracePeriod(logger klog.Logger, observedAt thresholdsObservedA
 }
 
 // nodeConditions returns the set of node conditions associated with a threshold
+// 下面这个函数也很简单,就是遍历thresholds数组,只要是在signalToNodeCondition这个map中找到了
+// 则就放置在results这个数组中范围
 func nodeConditions(thresholds []evictionapi.Threshold) []v1.NodeConditionType {
 	results := []v1.NodeConditionType{}
 	for _, threshold := range thresholds {
@@ -1094,6 +1099,9 @@ func hasFsStatsType(inputs []fsStatsType, item fsStatsType) bool {
 }
 
 // hasNodeCondition returns true if the node condition is in the input list
+// 这个函数是判断一个节点是否有磁盘/CPU/内存/PID等资源压力的功能实现
+// 纯从代码上看,仅仅是从一个inputs数组中查看是否有 item 这个元素，有就返回true,没有就返回false
+// 从这个函数来推断,意思应该是:有了对应资源压力的，就会放置到inputs这个数组中
 func hasNodeCondition(inputs []v1.NodeConditionType, item v1.NodeConditionType) bool {
 	for _, input := range inputs {
 		if input == item {

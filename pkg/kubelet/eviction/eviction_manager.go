@@ -230,6 +230,8 @@ func (m *managerImpl) IsUnderMemoryPressure() bool {
 }
 
 // IsUnderDiskPressure returns true if the node is under disk pressure.
+// hasNodeCondition函数其实很简单，就是在m.nodeConditions中查找NodeDiskPressure是否存在,其实就是string数组的查询
+// 之所以不使用二分法或者是set这类的Hash性质的东西,是因为如果数组在 < 10 的时候,可以利用CPU的缓存特性,实际速度更快
 func (m *managerImpl) IsUnderDiskPressure() bool {
 	m.RLock()
 	defer m.RUnlock()
@@ -347,7 +349,7 @@ func (m *managerImpl) synchronize(ctx context.Context, diskInfoProvider DiskInfo
 
 	// update internal state
 	m.Lock()
-	m.nodeConditions = nodeConditions
+	m.nodeConditions = nodeConditions // 看到能操作nodeConditions的只有这么一行代码了
 	m.thresholdsFirstObservedAt = thresholdsFirstObservedAt
 	m.nodeConditionsLastObservedAt = nodeConditionsLastObservedAt
 	m.thresholdsMet = thresholds
