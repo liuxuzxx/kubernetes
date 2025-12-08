@@ -185,6 +185,7 @@ func (m *managerImpl) Admit(attrs *lifecycle.PodAdmitAttributes) lifecycle.PodAd
 }
 
 // Start starts the control loop to observe and response to low compute resources.
+// 似乎这个地方就是进行启动磁盘统计的地方，但是很奇怪，驱逐难道只需要根据磁盘进行驱逐，没有内存的动作?
 func (m *managerImpl) Start(ctx context.Context, diskInfoProvider DiskInfoProvider, podFunc ActivePodsFunc, podCleanedUpFunc PodCleanedUpFunc, monitoringInterval time.Duration) {
 	logger := klog.FromContext(ctx)
 	thresholdHandler := func(message string) {
@@ -208,6 +209,7 @@ func (m *managerImpl) Start(ctx context.Context, diskInfoProvider DiskInfoProvid
 	// start the eviction manager monitoring
 	go func() {
 		for {
+			// synchronize方法返回需要驱逐的Pod信息,然后后面就会做驱逐的动作了.
 			evictedPods, err := m.synchronize(ctx, diskInfoProvider, podFunc)
 			if evictedPods != nil && err == nil {
 				logger.Info("Eviction manager: pods evicted, waiting for pod to be cleaned up", "pods", klog.KObjSlice(evictedPods))
@@ -329,6 +331,7 @@ func (m *managerImpl) synchronize(ctx context.Context, diskInfoProvider DiskInfo
 	thresholdsFirstObservedAt := thresholdsFirstObservedAt(thresholds, m.thresholdsFirstObservedAt, now)
 
 	// the set of node conditions that are triggered by currently observed thresholds
+	// 其实是通过thresholds这个转换成nodeConditions的,所以要观察这个thresholds是怎么来的
 	nodeConditions := nodeConditions(thresholds)
 	if len(nodeConditions) > 0 {
 		logger.V(3).Info("Eviction manager: node conditions - observed", "nodeCondition", nodeConditions)

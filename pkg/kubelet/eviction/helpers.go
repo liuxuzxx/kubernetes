@@ -191,6 +191,7 @@ func addAllocatableThresholds(thresholds []evictionapi.Threshold) []evictionapi.
 // Thresholds are parsed from evictionHard and evictionSoft limits so we will override.
 // If there is a single filesystem, then containerfs settings are same as nodefs.
 // If there is a separate image filesystem for both containers and images then containerfs settings are same as imagefs.
+// 这个地方看着是获取磁盘相关的监控和数据信息的,和前面看到的DiskPressure高度相关,是我们要查找的逻辑
 func UpdateContainerFsThresholds(thresholds []evictionapi.Threshold, imageFs, separateContainerImageFs bool) ([]evictionapi.Threshold, error) {
 	hardNodeFsDisk := evictionapi.Threshold{}
 	softNodeFsDisk := evictionapi.Threshold{}
