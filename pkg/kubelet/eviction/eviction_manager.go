@@ -312,6 +312,13 @@ func (m *managerImpl) synchronize(ctx context.Context, diskInfoProvider DiskInfo
 	}
 
 	// make observations and get a function to derive pod usage stats relative to those observations.
+	// 打开了日志级别为:8,算是看到了具体的日志信息
+
+	// observations其实是一些统计数据:就是signal这些类型的统计数据，大致如下:
+	// imagefs.inodesFree,contaienrfs.available,pid.available,imagefs.available,allocatableMemory.available,ndoefsindesFree这些
+	// 具体的内容如下:
+	// "Eviction manager:" log="observations" signal="nodefs.inodesFree" resourceName="inodes" available="103880115" capacity="104560640"
+	// time="2025-12-09 14:07:15.236745666 +0800 CST m=+9320.815523788
 	observations, statsFunc := makeSignalObservations(logger, summary)
 	debugLogObservations(logger, "observations", observations)
 
