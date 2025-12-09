@@ -69,6 +69,7 @@ func NewSummaryProvider(ctx context.Context, statsProvider Provider) SummaryProv
 	}
 }
 
+// 这个地方就是获取到summary的地方,其实就是Node的监控统计信息
 func (sp *summaryProviderImpl) Get(ctx context.Context, updateStats bool) (*statsapi.Summary, error) {
 	// TODO(timstclair): Consider returning a best-effort response if any of
 	// the following errors occur.
@@ -81,10 +82,12 @@ func (sp *summaryProviderImpl) Get(ctx context.Context, updateStats bool) (*stat
 	if err != nil {
 		return nil, fmt.Errorf("failed to get root cgroup stats: %v", err)
 	}
+	//磁盘的需要关注这个监控数据的获取
 	rootFsStats, err := sp.provider.RootFsStats()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rootFs stats: %v", err)
 	}
+	//image和container的磁盘和Inode的使用情况获取
 	imageFsStats, containerFsStats, err := sp.provider.ImageFsStats(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get imageFs stats: %v", err)

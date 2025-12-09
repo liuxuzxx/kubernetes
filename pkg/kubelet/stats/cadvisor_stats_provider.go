@@ -287,6 +287,7 @@ func (p *cadvisorStatsProvider) ListPodCPUAndMemoryStats(ctx context.Context) ([
 
 // ImageFsStats returns the stats of the filesystem for storing images.
 func (p *cadvisorStatsProvider) ImageFsStats(ctx context.Context) (imageFsRet *statsapi.FsStats, containerFsRet *statsapi.FsStats, errCall error) {
+	// 注意这个地方只是获取了第一个,原因很简单,就是认为所有的镜像都是在同一个磁盘分区下,也就是同一个device
 	imageFsInfo, err := p.cadvisor.ImagesFsInfo(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get imageFs info: %v", err)

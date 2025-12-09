@@ -871,6 +871,9 @@ func makeSignalObservations(logger klog.Logger, summary *statsapi.Summary) (sign
 			}
 		}
 	}
+
+	//下面这段代码是统计Node的磁盘使用情况的,就是磁盘使用了多少,总共多少,然后inode使用了多少,总共多少.
+	// 因为磁盘其实提供了是两种资源: 空间+inode,二者缺一不可,曾经在南沙环境碰到过一台机器的inode耗尽了,然后导致Node处于NotReady状态
 	if nodeFs := summary.Node.Fs; nodeFs != nil {
 		if nodeFs.AvailableBytes != nil && nodeFs.CapacityBytes != nil {
 			result[evictionapi.SignalNodeFsAvailable] = signalObservation{
@@ -887,6 +890,9 @@ func makeSignalObservations(logger klog.Logger, summary *statsapi.Summary) (sign
 			}
 		}
 	}
+
+	// 下面这段代码是获取Image和Container的磁盘容量以及inodes的使用情况的
+	// 这个不是很明白,因为image和container不都是使用磁盘的吗,为什么需要区分开
 	if summary.Node.Runtime != nil {
 		if imageFs := summary.Node.Runtime.ImageFs; imageFs != nil {
 			if imageFs.AvailableBytes != nil && imageFs.CapacityBytes != nil {
@@ -921,6 +927,8 @@ func makeSignalObservations(logger klog.Logger, summary *statsapi.Summary) (sign
 			}
 		}
 	}
+
+	// 这个是Pid的资源信息获取
 	if rlimit := summary.Node.Rlimit; rlimit != nil {
 		if rlimit.NumOfRunningProcesses != nil && rlimit.MaxPID != nil {
 			available := int64(*rlimit.MaxPID) - int64(*rlimit.NumOfRunningProcesses)

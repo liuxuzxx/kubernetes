@@ -286,3 +286,176 @@ func nodeConditions(thresholds []evictionapi.Threshold) []v1.NodeConditionType {
 # 其实从synchronize这个方法的解释来看,这个方法是获取需要驱逐的Pod的信息的,然后上面的上报给master的磁盘压力状态只不过是
 # 顺手做了的事情,就是说顺手做了统计了的事情.属于搭便车
 ```
+
+6. 通过修改 kubelet 的输出日志的级别为:8,看出来了一些信息
+
+```go
+// 这行代码其实是根据summary获取到了可观测数据,也就是observations
+observations, statsFunc := makeSignalObservations(logger, summary)
+
+//接着根据下面的方法，根据不同的阈值返回不同的判断结果
+thresholds := thresholdsMet(logger, thresholds, observations, false)
+
+#总体评价下kubernetes这段代码逻辑写的不是那么的优雅,很绕圈子,也不是很好理解
+#尤其是后面这个方法thresholdsMet，传入一个thresholds，返回的也是一个thresholds,容易混淆
+```
+
+7. 追踪 summary 是怎么来的
+
+```go
+# 注意记住，下面这几种类型都是被算作磁盘压力的
+//	signalToNodeCondition[evictionapi.SignalImageFsAvailable] = v1.NodeDiskPressure
+//	signalToNodeCondition[evictionapi.SignalContainerFsAvailable] = v1.NodeDiskPressure
+//	signalToNodeCondition[evictionapi.SignalNodeFsAvailable] = v1.NodeDiskPressure
+//	signalToNodeCondition[evictionapi.SignalImageFsInodesFree] = v1.NodeDiskPressure
+//	signalToNodeCondition[evictionapi.SignalNodeFsInodesFree] = v1.NodeDiskPressure
+//	signalToNodeCondition[evictionapi.SignalContainerFsInodesFree] = v1.NodeDiskPressure
+// 其实就是:主要分为磁盘存储以及磁盘系统的inodes是否够用,然后又有一个维度: Image,Container,Node的，所以计算起来就是: 2 x 3 =6种类型
+type SummaryProvider interface {
+	// 这个是获取summary的方法
+	Get(ctx context.Context, updateStats bool) (*statsapi.Summary, error)
+	GetCPUAndMemoryStats(ctx context.Context) (*statsapi.Summary, error)
+}
+```
+
+8. 继续查看实现
+
+```go
+#1. 首先是需要查看下具体从summary如何转换成observations的
+
+func makeSignalObservations(logger klog.Logger, summary *statsapi.Summary) (signalObservations, statsFunc) {
+
+	...省略不相关的代码逻辑
+	# 下面这段代码是统计node的磁盘使用情况的
+	if nodeFs := summary.Node.Fs; nodeFs != nil {
+		if nodeFs.AvailableBytes != nil && nodeFs.CapacityBytes != nil {
+			result[evictionapi.SignalNodeFsAvailable] = signalObservation{
+				available: resource.NewQuantity(int64(*nodeFs.AvailableBytes), resource.BinarySI),
+				capacity:  resource.NewQuantity(int64(*nodeFs.CapacityBytes), resource.BinarySI),
+				time:      nodeFs.Time,
+			}
+		}
+		if nodeFs.InodesFree != nil && nodeFs.Inodes != nil {
+			result[evictionapi.SignalNodeFsInodesFree] = signalObservation{
+				available: resource.NewQuantity(int64(*nodeFs.InodesFree), resource.DecimalSI),
+				capacity:  resource.NewQuantity(int64(*nodeFs.Inodes), resource.DecimalSI),
+				time:      nodeFs.Time,
+			}
+		}
+	}
+
+	#下面这段代码是获取Image和Container的磁盘的使用以及Inode的使用的情况
+	if summary.Node.Runtime != nil {
+		if imageFs := summary.Node.Runtime.ImageFs; imageFs != nil {
+			if imageFs.AvailableBytes != nil && imageFs.CapacityBytes != nil {
+				result[evictionapi.SignalImageFsAvailable] = signalObservation{
+					available: resource.NewQuantity(int64(*imageFs.AvailableBytes), resource.BinarySI),
+					capacity:  resource.NewQuantity(int64(*imageFs.CapacityBytes), resource.BinarySI),
+					time:      imageFs.Time,
+				}
+			}
+			if imageFs.InodesFree != nil && imageFs.Inodes != nil {
+				result[evictionapi.SignalImageFsInodesFree] = signalObservation{
+					available: resource.NewQuantity(int64(*imageFs.InodesFree), resource.DecimalSI),
+					capacity:  resource.NewQuantity(int64(*imageFs.Inodes), resource.DecimalSI),
+					time:      imageFs.Time,
+				}
+			}
+		}
+		if containerFs := summary.Node.Runtime.ContainerFs; containerFs != nil {
+			if containerFs.AvailableBytes != nil && containerFs.CapacityBytes != nil {
+				result[evictionapi.SignalContainerFsAvailable] = signalObservation{
+					available: resource.NewQuantity(int64(*containerFs.AvailableBytes), resource.BinarySI),
+					capacity:  resource.NewQuantity(int64(*containerFs.CapacityBytes), resource.BinarySI),
+					time:      containerFs.Time,
+				}
+			}
+			if containerFs.InodesFree != nil && containerFs.Inodes != nil {
+				result[evictionapi.SignalContainerFsInodesFree] = signalObservation{
+					available: resource.NewQuantity(int64(*containerFs.InodesFree), resource.DecimalSI),
+					capacity:  resource.NewQuantity(int64(*containerFs.Inodes), resource.DecimalSI),
+					time:      containerFs.Time,
+				}
+			}
+		}
+	}
+	...省略不相关代码逻辑
+	return result, statsFunc
+}
+
+#2. 接着看summary如何获取磁盘相关的信息,这样子我们有的放矢,就是只需要关注磁盘相关的数据信息获取就行了
+func (sp *summaryProviderImpl) Get(ctx context.Context, updateStats bool) (*statsapi.Summary, error) {
+	...省略无用的代码
+	# 磁盘的统计信息获取
+	rootFsStats, err := sp.provider.RootFsStats()
+	#image和container的使用统计信息获取
+	imageFsStats, containerFsStats, err := sp.provider.ImageFsStats(ctx)
+	...省略无用代码
+
+	nodeStats := statsapi.NodeStats{
+		...省略其他无用属性
+		Fs:               rootFsStats,
+		Runtime:          &statsapi.RuntimeStats{ContainerFs: containerFsStats, ImageFs: imageFsStats},
+	}
+	...省略
+}
+```
+
+9. 追踪 rootFsStats 如何获取的
+
+```go
+#pkg/kubelet/kubelet.go
+#这个其实调用很奇怪的,kubelet作为一个顶层的逻辑纵览协调者,为什么会被下层的具体的summary.go的handler.go这种业务逻辑调用
+# 难道不应该把这些做统计的单独出来一个文件或者是一个文件夹来处理吗?
+func (kl *Kubelet) RootFsStats() (*statsapi.FsStats, error) {
+	return kl.StatsProvider.RootFsStats()
+}
+
+# 继续查看StatsProvider.ROotFsStats()的实现
+
+// RootFsStats returns the stats of the node root filesystem.
+func (p *Provider) RootFsStats() (*statsapi.FsStats, error) {
+	rootFsInfo, err := p.cadvisor.RootFsInfo()
+    ...省略
+
+	return &statsapi.FsStats{
+		...省略不相关的属性设置
+		AvailableBytes: &rootFsInfo.Available,
+		CapacityBytes:  &rootFsInfo.Capacity,
+		InodesFree:     rootFsInfo.InodesFree,
+		Inodes:         rootFsInfo.Inodes,
+	}, nil
+}
+
+//继续追踪cadvisor.RootFsInfo() 方法的获取,其实最终还是cadvisor承担下了所有的数据信息
+//下面的代码其实很简单，就是获取:cc.rootPath的磁盘使用信息(默认是: /var/lib/kubelet)
+func (cc *cadvisorClient) RootFsInfo() (cadvisorapiv2.FsInfo, error) {
+	return cc.GetDirFsInfo(cc.rootPath)
+}
+
+#换句话来说，就是如果: /var/lib/kubelet这个目录你给写满了,或者是挂载的同一块磁盘写满了,就会出现DiskPressure的告警状态
+// 下面这个方法的实现,印证了上面的说法,首先是根据dir获取所在的device,然后根据device获取FsInfo也就是磁盘和inode的使用信息
+func (m *manager) GetDirFsInfo(dir string) (v2.FsInfo, error) {
+	device, err := m.fsInfo.GetDirFsDevice(dir)
+	if err != nil {
+		return v2.FsInfo{}, fmt.Errorf("failed to get device for dir %q: %v", dir, err)
+	}
+	return m.getFsInfoByDeviceName(device.Device)
+}
+```
+
+10. 继续查看如何获取到 ImageFs 的信息的
+
+```go
+#在查看源码的时候,看到k8s的源码通过个属性配置:useLegacyCadvisorStats来决定是否使用cadvisor还是CRI的接口来获取容器或者是镜像的信息
+#这个也是趋势,就是说CRI的事情CRI自己做
+
+func (p *cadvisorStatsProvider) ImageFsStats(ctx context.Context) (imageFsRet *statsapi.FsStats, containerFsRet *statsapi.FsStats, errCall error) {
+	imageFsInfo, err := p.cadvisor.ImagesFsInfo(ctx)
+
+	containerFsInfo, err := p.cadvisor.ContainerFsInfo(ctx)
+
+	#简化下,上面两个调用,一个是调用获取Image信息,另外一个是获取Container信息的
+	#注意下面的cadvisor的方法,如果获取多个,因为是镜像,所以可能会返回多个device,但是只会获取第一个
+}
+```
