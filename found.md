@@ -447,15 +447,83 @@ func (m *manager) GetDirFsInfo(dir string) (v2.FsInfo, error) {
 10. 继续查看如何获取到 ImageFs 的信息的
 
 ```go
-#在查看源码的时候,看到k8s的源码通过个属性配置:useLegacyCadvisorStats来决定是否使用cadvisor还是CRI的接口来获取容器或者是镜像的信息
-#这个也是趋势,就是说CRI的事情CRI自己做
+# 1. 首先是需要看到在kubelet.go代码中的如下初始化的代码
+    // kubelet有两种方式获取Image和Container的统计信息，一种是cadvisor,另外一种是CRI接口(就是类似于Docker/Containerd/Kata这种自己直接提供接口提供)
+	if kubeDeps.useLegacyCadvisorStats {
+		klet.StatsProvider = cadvisorStatsProvider
+	} else {
+		klet.StatsProvider = stats.NewCRIStatsProvider(
+			klet.cadvisor,
+			klet.resourceAnalyzer,
+			klet.podManager,
+			kubeDeps.RemoteRuntimeService,
+			kubeDeps.RemoteImageService,
+			hostStatsProvider,
+			utilfeature.DefaultFeatureGate.Enabled(features.PodAndContainerStatsFromCRI),
+			cadvisorStatsProvider,
+		)
+	}
 
-func (p *cadvisorStatsProvider) ImageFsStats(ctx context.Context) (imageFsRet *statsapi.FsStats, containerFsRet *statsapi.FsStats, errCall error) {
-	imageFsInfo, err := p.cadvisor.ImagesFsInfo(ctx)
+	//具体useLegacyCadvisorStats是怎么确定的，就是通过方法UsingLegacyCadvisorStats
+	kubeDeps.useLegacyCadvisorStats = cadvisor.UsingLegacyCadvisorStats(kubeCfg.ContainerRuntimeEndpoint)
 
-	containerFsInfo, err := p.cadvisor.ContainerFsInfo(ctx)
+	//查看具体的逻辑
+	// 1. 如果开启了PodAndContainerStatsFromCRI特性，则返回false,那么上面对应也就是使用CRI接口
+	// 2. 如果没有开启PodAndContainerStatsFromCRI特性,那么就看下runtimeEndpoint是否以: run/crio/crio.sock结尾，其实就是判断是不是cri-o这个运行时
+	func UsingLegacyCadvisorStats(runtimeEndpoint string) bool {
+    	// If PodAndContainerStatsFromCRI feature is enabled, then assume the user
+    	// wants to use CRI stats, as the aforementioned workaround isn't needed
+    	// when this feature is enabled.
+    	if utilfeature.DefaultFeatureGate.Enabled(features.PodAndContainerStatsFromCRI) {
+    		return false
+    	}
+    	return strings.HasSuffix(runtimeEndpoint, CrioSocketSuffix)
+    }
 
-	#简化下,上面两个调用,一个是调用获取Image信息,另外一个是获取Container信息的
-	#注意下面的cadvisor的方法,如果获取多个,因为是镜像,所以可能会返回多个device,但是只会获取第一个
+# 2. 综上所述，可以得出结论: containerd使用的是CRI接口获取Image和Container的Fs以及其他的统计信息的
+
+//就是直接和CRI的实现进行通信,看了下是通过GRPC进行通信的
+func (r *remoteImageService) ImageFsInfo(ctx context.Context) (*runtimeapi.ImageFsInfoResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+
+	return r.imageFsInfoV1(ctx)
+}
+
+// 这个方法直接一次性就返回了imageFs和containerFs的stats，并且是同一个，不区分的
+// 我在想，我们是否也可以使用CRI接口和containerd进行通信?如果这样子就基本能够验证我们的正确性了
+func (p *criStatsProvider) ImageFsStats(ctx context.Context) (imageFsRet *statsapi.FsStats, containerFsRet *statsapi.FsStats, errRet error) {
+	resp, err := p.imageService.ImageFsInfo(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(resp.GetImageFilesystems()) == 0 {
+		return nil, nil, fmt.Errorf("imageFs information is unavailable")
+	}
+	fs := resp.GetImageFilesystems()[0]
+	imageFsRet = &statsapi.FsStats{
+		Time:      metav1.NewTime(time.Unix(0, fs.Timestamp)),
+		UsedBytes: &fs.UsedBytes.Value,
+	}
+	if fs.InodesUsed != nil {
+		imageFsRet.InodesUsed = &fs.InodesUsed.Value
+	}
+	imageFsInfo, err := p.getFsInfo(klog.FromContext(ctx), fs.GetFsId())
+	if err != nil {
+		return nil, nil, fmt.Errorf("get filesystem info: %w", err)
+	}
+	if imageFsInfo != nil {
+		// The image filesystem id is unknown to the local node or there's
+		// an error on retrieving the stats. In these cases, we omit those
+		// stats and return the best-effort partial result. See
+		// https://github.com/kubernetes/heapster/issues/1793.
+		imageFsRet.AvailableBytes = &imageFsInfo.Available
+		imageFsRet.CapacityBytes = &imageFsInfo.Capacity
+		imageFsRet.InodesFree = imageFsInfo.InodesFree
+		imageFsRet.Inodes = imageFsInfo.Inodes
+	}
+	// TODO: For CRI Stats Provider we don't support separate disks yet.
+	return imageFsRet, imageFsRet, nil
 }
 ```

@@ -97,6 +97,8 @@ type Provider struct {
 
 // containerStatsProvider is an interface that provides the stats of the
 // containers managed by pods.
+// 在这个地方,k8s的源码实现了两个模式:一个是CRI接口的实现,另外一个是cadvisor的实现
+// 1. CRI的实现，就是所有和image以及container相关的统计信息全部交给CRI的实现来,也就是Docker/Containerd/CRI-O等等来实现
 type containerStatsProvider interface {
 	// PodCPUAndMemoryStats gets the latest CPU & Memory stats for the pod and all its running containers.
 	PodCPUAndMemoryStats(context.Context, *v1.Pod, *kubecontainer.PodStatus) (*statsapi.PodStats, error)
