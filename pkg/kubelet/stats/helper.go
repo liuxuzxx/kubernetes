@@ -91,6 +91,7 @@ func cadvisorInfoToCPUandMemoryStats(info *cadvisorapiv2.ContainerInfo) (*statsa
 
 // cadvisorInfoToContainerStats returns the statsapi.ContainerStats converted
 // from the container and filesystem info.
+// 看了下这个方法其实没有访问任何系统或者是什么，而是从info: ContainerInfo这个struct中进行字段的转换获取到的所有信息
 func cadvisorInfoToContainerStats(logger klog.Logger, name string, info *cadvisorapiv2.ContainerInfo, rootFs, imageFs *cadvisorapiv2.FsInfo) *statsapi.ContainerStats {
 	result := &statsapi.ContainerStats{
 		StartTime: metav1.NewTime(info.Spec.CreationTime),

@@ -855,6 +855,7 @@ func makeSignalObservations(logger klog.Logger, summary *statsapi.Summary) (sign
 	// build an evaluation context for current eviction signals
 	result := signalObservations{}
 
+	//这段是内存的监控信息的统计转换操作
 	memoryAvailableSignal := makeMemoryAvailableSignalObservation(logger, summary)
 	if memoryAvailableSignal != nil {
 		result[evictionapi.SignalMemoryAvailable] = *memoryAvailableSignal

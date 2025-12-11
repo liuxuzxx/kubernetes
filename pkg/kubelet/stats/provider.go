@@ -117,6 +117,7 @@ func (p *Provider) RlimitStats() (*statsapi.RlimitStats, error) {
 // GetCgroupStats returns the stats of the cgroup with the cgroupName. Note that
 // this function doesn't generate filesystem stats.
 func (p *Provider) GetCgroupStats(cgroupName string, updateStats bool) (*statsapi.ContainerStats, *statsapi.NetworkStats, error) {
+	// 这个方法获取到的info是后续获取内存,CPU,IO,网络等资源统计信息的来源
 	info, err := getCgroupInfo(p.cadvisor, cgroupName, updateStats)
 	if err != nil {
 		if errors.Is(err, cadvisormemory.ErrDataNotFound) {
