@@ -32,6 +32,7 @@ import (
 )
 
 // Stats provides basic information about max and current process count
+// 统计系统能够支撑的进程个数,获取 /proc/sys/kernel/pid_max|threads-max的最小值
 func Stats() (*statsapi.RlimitStats, error) {
 	rlimit := &statsapi.RlimitStats{}
 
@@ -70,7 +71,7 @@ func Stats() (*statsapi.RlimitStats, error) {
 }
 
 func runningTaskCount() (int64, error) {
-	// Example: 1.36 3.49 4.53 2/3518 3715089
+	// Example: 1.36 3.49 4.53 2/3518 3715089 #解析出来就是:3518 这个数字
 	bytes, err := os.ReadFile("/proc/loadavg")
 	if err != nil {
 		return 0, err

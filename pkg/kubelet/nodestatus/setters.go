@@ -551,6 +551,7 @@ func ReadyCondition(
 }
 
 // MemoryPressureCondition returns a Setter that updates the v1.NodeMemoryPressure condition on the node.
+// 这个是通过cadvisor的方式获取内存的使用的,底层是通过cgroup的方式获取到的
 func MemoryPressureCondition(nowFunc func() time.Time, // typically Kubelet.clock.Now
 	pressureFunc func() bool, // typically Kubelet.evictionManager.IsUnderMemoryPressure
 	recordEventFunc func(eventType, event string), // typically Kubelet.recordNodeStatusEvent
