@@ -27,6 +27,8 @@ import (
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
 )
 
+// 想着应该也是在pod的package里面,因为K8S的资源对象是Pod,container只不过是Pod的一个组成部分而以,这个其实
+// 是加一层的设计思想,很不错
 // Manager stores and manages access to pods, maintaining the mappings
 // between static pods and mirror pods.
 //
@@ -42,6 +44,9 @@ import (
 // status of the mirror pod always reflects the actual status of the static
 // pod. When a static pod gets deleted, the associated orphaned mirror pod
 // will also be removed.
+//
+// 这个interface的命名就很遵守命名规则,因为已经是在pod的package下面了,所以不需要再次增加pod的前缀了
+// 很多时候我们给无论是table,class,struct,甚至是文件起名字的时候,总是喜欢带上前缀,其实完全没有任何的必要
 type Manager interface {
 	// GetPodByFullName returns the (non-mirror) pod that matches full name, as well as
 	// whether the pod was found.
@@ -105,6 +110,11 @@ type Manager interface {
 //
 // All fields in basicManager are read-only and are updated calling SetPods,
 // AddPod, UpdatePod, or RemovePod.
+//
+// 很OOP的设计,对待重要的属性,必须经过方法才行,这样子对于监控,排查,修改等等都是有好处的
+//
+// 看了下实现,对于Manager的interface的实现,真的就是对Pod这个struct的增删改查,没有额外的任何和cri以及cni
+// 打交道的动作
 type basicManager struct {
 	// Protects all internal maps.
 	lock sync.RWMutex
@@ -131,6 +141,10 @@ func NewBasicPodManager() Manager {
 
 // SetPods set the internal pods based on the new pods.
 func (pm *basicManager) SetPods(newPods []*v1.Pod) {
+	//golang的defer写法,其实在java或者是rust的逻辑应该是
+	// pm.lock.Lock(); 上锁
+	// ...好多业务代码
+	// pm.lock.Unlock(); 解锁
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
@@ -143,6 +157,7 @@ func (pm *basicManager) SetPods(newPods []*v1.Pod) {
 	pm.updatePodsInternal(newPods...)
 }
 
+// 看实现似乎都转化成UpdatePod这个方法执行了
 func (pm *basicManager) AddPod(pod *v1.Pod) {
 	pm.UpdatePod(pod)
 }
@@ -158,6 +173,8 @@ func (pm *basicManager) UpdatePod(pod *v1.Pod) {
 // ephemeralContainers属性是一个临时容器，主要用来调试的,例如进入一个crash问题的容器，这个时候
 // Pod没有起来，但是需要查看是什么问题，是网络，还是config等问题，可以使用ephemeralContainers属性
 // 对应kubectl debug命令,但是加上去之后，只有等待重启的时候才会消失,无法删除或者是自动删除
+// 纯从代码的角度欣赏这段代码,逻辑确实很清晰,这么看其实追求的设计模式在真正的稳定的项目中都是扯蛋的做法
+// 很朴实的做法才是最稳定的
 func updateMetrics(oldPod, newPod *v1.Pod) {
 	var numEC int
 	if oldPod != nil {

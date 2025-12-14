@@ -159,6 +159,8 @@ type StreamingRuntime interface {
 }
 
 // ImageService interfaces allows to work with image service.
+// 和CRI的对接的接口的Image部分:
+// 就是对镜像的管理:拉取,展示,删除,获取Image的一些信息等等
 type ImageService interface {
 	// PullImage pulls an image from the network to local storage using the supplied
 	// secrets if necessary.

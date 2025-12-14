@@ -46,6 +46,8 @@ type Volume struct {
 
 // Represents the source of a volume to mount.
 // Only one of its members may be specified.
+// 这个K8S支持的Volume类型也太多了吧,看着这个数据结构,如果是Java估计给你整成接口和策略模式
+// 但是k8s的golang写法还是很粗暴简单的,不过确实很有效果
 type VolumeSource struct {
 	// hostPath represents a pre-existing file or directory on the host
 	// machine that is directly exposed to the container. This is generally
