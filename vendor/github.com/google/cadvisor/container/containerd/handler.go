@@ -195,6 +195,7 @@ func (h *containerdContainerHandler) getFsStats(stats *info.ContainerStats) erro
 	return nil
 }
 
+// 1. 应该是这个实现,因为三个是:crio,containerd,raw.crio是适配cri-o的,肯定不行.那么raw是最后的选择，所以淘汰,那么就剩下containerd的实现了
 func (h *containerdContainerHandler) GetStats() (*info.ContainerStats, error) {
 	stats, err := h.libcontainerHandler.GetStats()
 	if err != nil {

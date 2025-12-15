@@ -73,6 +73,7 @@ type InMemoryCache struct {
 	backend           []storage.StorageDriver
 }
 
+// container的监控和统计数据的变化点在这个地方
 func (c *InMemoryCache) AddStats(cInfo *info.ContainerInfo, stats *info.ContainerStats) error {
 	var cstore *containerCache
 	var ok bool

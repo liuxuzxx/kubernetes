@@ -540,6 +540,7 @@ func (m *manager) GetContainerInfoV2(containerName string, options v2.RequestOpt
 	return infos, errs.OrNil()
 }
 
+// 5. 根据条件进行查询ContainerInfo的信息
 func (m *manager) containerDataToContainerInfo(cont *containerData, query *info.ContainerInfoRequest) (*info.ContainerInfo, error) {
 	// Get the info from the container.
 	cinfo, err := cont.GetInfo(true)
@@ -547,6 +548,7 @@ func (m *manager) containerDataToContainerInfo(cont *containerData, query *info.
 		return nil, err
 	}
 
+	// 看这个stats是从内存中获取到的,所以关键就是要接着查看这个内存的这块数据是如何进行更新的
 	stats, err := m.memoryCache.RecentStats(cinfo.Name, query.Start, query.End, query.NumStats)
 	if err != nil {
 		return nil, err
@@ -683,6 +685,7 @@ func (m *manager) containerDataSliceToContainerInfoSlice(containers []*container
 	return output, nil
 }
 
+// 4. 开始获取container的指标数据信息以及其他的详细内容信息
 func (m *manager) GetRequestedContainersInfo(containerName string, options v2.RequestOptions) (map[string]*info.ContainerInfo, error) {
 	containers, err := m.getRequestedContainers(containerName, options)
 	if err != nil {
@@ -707,6 +710,8 @@ func (m *manager) GetRequestedContainersInfo(containerName string, options v2.Re
 	return containersMap, errs.OrNil()
 }
 
+// 这段代码好像是看那个node status的时候Disk的信息获取的时候看到过,
+// 这个地方应该是获取所有container的监控数据信息的地方
 func (m *manager) getRequestedContainers(containerName string, options v2.RequestOptions) (map[string]*containerData, error) {
 	containersMap := make(map[string]*containerData)
 	switch options.IdType {

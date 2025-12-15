@@ -1205,6 +1205,7 @@ type prometheusHostAdapter struct {
 	host HostInterface
 }
 
+// 2. 看到实现就是prometheusHostAdapter这个
 func (a prometheusHostAdapter) GetRequestedContainersInfo(containerName string, options cadvisorv2.RequestOptions) (map[string]*cadvisorapi.ContainerInfo, error) {
 	return a.host.GetRequestedContainersInfo(containerName, options)
 }

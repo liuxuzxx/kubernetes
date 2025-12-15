@@ -444,6 +444,7 @@ func (kl *Kubelet) getPodVolumeSubpathListFromDisk(podUID types.UID) ([]string, 
 }
 
 // GetRequestedContainersInfo returns container info.
+// 3.那么这个追踪没有问题,因为这些方法恰巧都实现了同一个Interface,所以看到的是好几个地方都有的情况
 func (kl *Kubelet) GetRequestedContainersInfo(containerName string, options cadvisorv2.RequestOptions) (map[string]*cadvisorapiv1.ContainerInfo, error) {
 	return kl.cadvisor.GetRequestedContainersInfo(containerName, options)
 }

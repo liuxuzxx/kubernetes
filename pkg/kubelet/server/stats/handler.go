@@ -57,6 +57,7 @@ type Provider interface {
 	// Container Filesystem is on root and Images are stored on ImageFs
 	// First return parameter is the image filesystem and
 	// second parameter is the container filesystem
+	// 这个函数就是之前获取summary调用的函数,然后使用summary转换成conditions,从而可以做节点状态的判断和更新操作
 	ImageFsStats(ctx context.Context) (imageFs *statsapi.FsStats, containerFs *statsapi.FsStats, callErr error)
 	// The following stats are provided by cAdvisor.
 	//
@@ -71,6 +72,7 @@ type Provider interface {
 
 	// GetRequestedContainersInfo returns the information of the container with
 	// the containerName, and with the specified cAdvisor options.
+	// 这个地方获取到的Container的信息
 	GetRequestedContainersInfo(containerName string, options cadvisorv2.RequestOptions) (map[string]*cadvisorapi.ContainerInfo, error)
 
 	// The following information is provided by Kubelet.

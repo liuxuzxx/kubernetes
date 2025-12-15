@@ -47,6 +47,7 @@ type ContainerHandler interface {
 	GetSpec() (info.ContainerSpec, error)
 
 	// Returns the current stats values of the container.
+	// 这个方法有三个实现:crio,containerd,raw三个包下面的handler.go实现了这个方法
 	GetStats() (*info.ContainerStats, error)
 
 	// Returns the subcontainers of this container.

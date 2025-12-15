@@ -374,6 +374,7 @@ func NewPrometheusCollector(i infoProvider, f ContainerLabelsFunc, includedMetri
 		}...)
 	}
 	if includedMetrics.Has(container.MemoryUsageMetrics) {
+		// 这段是获取container级别的内存监控数据的详细信息,可以通过这些个指标来追踪到底是拿一块的内存出现了泄漏,导致oom的问题
 		c.containerMetrics = append(c.containerMetrics, []containerMetric{
 			{
 				name:      "container_memory_cache",
@@ -1894,6 +1895,7 @@ func BaseContainerLabels(whiteList []string) func(container *info.ContainerInfo)
 	}
 }
 
+// 1.难道真的是这个地方的Prometheus的采集到了container的数据信息?
 func (c *PrometheusCollector) collectContainersInfo(ch chan<- prometheus.Metric) {
 	containers, err := c.infoProvider.GetRequestedContainersInfo("/", c.opts)
 	if err != nil {

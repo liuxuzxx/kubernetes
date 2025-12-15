@@ -142,6 +142,7 @@ type ContainerInfo struct {
 	Spec ContainerSpec `json:"spec,omitempty"`
 
 	// Historical statistics gathered from the container.
+	// 这个地方怀疑是直接设置进去的那种构造方法
 	Stats []*ContainerStats `json:"stats,omitempty"`
 }
 
@@ -226,6 +227,8 @@ func (s *ContainerSpec) Eq(b *ContainerSpec) bool {
 	return true
 }
 
+// 追踪到这里看到唯一能和前面ContainerStats挂上关系的地方
+// 这么看,应该是在获取ContainerInfo的时候,顺带着获取到了这个container的各种监控和统计数据信息
 func (ci *ContainerInfo) StatsAfter(ref time.Time) []*ContainerStats {
 	n := len(ci.Stats) + 1
 	for i, s := range ci.Stats {
@@ -386,6 +389,7 @@ type HugetlbStats struct {
 	Failcnt uint64 `json:"failcnt"`
 }
 
+// 能够确定的事情就是: 肯定是使用了这个struct进行内存相关的指标数据的存储,然后设置到指标当中
 type MemoryStats struct {
 	// Current memory usage, this includes all memory regardless of when it was
 	// accessed.
@@ -964,6 +968,9 @@ type ProcessStats struct {
 	Ulimits []UlimitSpec `json:"ulimits,omitempty"`
 }
 
+// 看到MemoryStats这个并没有单独的设置,那么大概率是在设置ContainerStats的时候,设置了属性Memory
+// 主要是看这个属性全是大写的开头,这点golang就方的开,没有Java那么小心翼翼的把属性全部封装在方法里面
+// 其实我们用到的很多都是贫血模型,很多就是设置下属性就行了,并没有很深的计算逻辑在里面
 type ContainerStats struct {
 	// The time of this stat point.
 	Timestamp time.Time               `json:"timestamp"`
