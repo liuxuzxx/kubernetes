@@ -81,6 +81,8 @@ func (h *Handler) GetStats() (*info.ContainerStats, error) {
 		}
 	}
 
+	// 这个是containerStats的来源,看着应该是从cgroup获取到的信息
+	// 这个地方那个的实现是cgroup2fs的实现
 	cgroupStats, err := h.cgroupManager.GetStats()
 	if err != nil {
 		if !ignoreStatsError {
@@ -911,6 +913,9 @@ func setThreadsStats(s *cgroups.Stats, ret *info.ContainerStats) {
 	}
 }
 
+// 这个地方就是获取到的信息设置到Memory这个属性的地方
+// 看这个代码的实现,是从cgroups.Stats中获取到的,也就是从这个数据转成ContainerStats这个struct的
+// 所以我们的重点是观察cgroups.Stats是怎么拿到的
 func newContainerStats(cgroupStats *cgroups.Stats, includedMetrics container.MetricSet) *info.ContainerStats {
 	ret := &info.ContainerStats{
 		Timestamp: time.Now(),

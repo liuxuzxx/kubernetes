@@ -153,6 +153,8 @@ func diskStatsCopy(blkioStats []cgroups.BlkioStatEntry) (stat []info.PerDiskStat
 	return diskStatsCopy1(diskStat)
 }
 
+// 这个地方是判断是否是cgroup2的,就是通过如下的命令查看的
+// stat -fc %T /sys/fs/cgroup
 func NewCgroupManager(name string, paths map[string]string) (cgroups.Manager, error) {
 	config := &cgroups.Cgroup{
 		Name:      name,

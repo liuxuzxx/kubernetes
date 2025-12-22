@@ -91,6 +91,8 @@ func (m *Manager) GetAllPids() ([]int, error) {
 	return cgroups.GetAllPids(m.dirPath)
 }
 
+// 这个方法的实现就是cgroupv2实现读取资源统计与使用的地方
+// 我们这次追击的重点是: 内存
 func (m *Manager) GetStats() (*cgroups.Stats, error) {
 	var errs []error
 
