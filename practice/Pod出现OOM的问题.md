@@ -1,24 +1,24 @@
 # 1. 概述
 
-OOM Kill的出现.
+OOM Kill 的出现.
 
-目前发现南沙生产有一个服务cpaas-msg-hub在每隔一段时间之后,就会出现OOM Kill,Pod的内存从3G调整到3200Mi,又调整到3500Mi,但是还是无法阻止出现OOM Kill.
-唯一的改变点就是:延迟了OOM Kill出现的时间,就是给的Pod内存越大,服务能够维持的时间也就越长.
+目前发现南沙生产有一个服务 cpaas-msg-hub 在每隔一段时间之后,就会出现 OOM Kill,Pod 的内存从 3G 调整到 3200Mi,又调整到 3500Mi,但是还是无法阻止出现 OOM Kill.
+唯一的改变点就是:延迟了 OOM Kill 出现的时间,就是给的 Pod 内存越大,服务能够维持的时间也就越长.
 
 # 2. 观察到的客观事实
 
-1. 服务启动之后,看到container_memory_working_set_bytes这个指标会逐步的增长
-2. container_memory_working_set_bytes这个指标的增长速度大概是:110Mb/天
-3. 当内存增长到3.5GB之后,会维持大概25天-35天左右的时候,然后可能会在一个时间点触发OOM Kill,重启
-4. 在整个服务启动期间,因为是Java服务,看到Java的堆一直正常的进行GC,从未出现过堆的OOM
+1. 服务启动之后,看到 container_memory_working_set_bytes 这个指标会逐步的增长
+2. container_memory_working_set_bytes 这个指标的增长速度大概是:110Mb/天
+3. 当内存增长到 3.5GB 之后,会维持大概 25 天-35 天左右的时候,然后可能会在一个时间点触发 OOM Kill,重启
+4. 在整个服务启动期间,因为是 Java 服务,看到 Java 的堆一直正常的进行 GC,从未出现过堆的 OOM
 
 # 3. 基本的推理
 
-1. 这起OOM Kill的原因,大概率或者是说肯定是堆外内存的问题
-2. 这个堆外内存不仅仅是Java的堆外面,也可能是container_memory_working_set_bytes组成的所有部分都有可能
-3. 所以我们就开始逐一的调查和摸排container_memory_working_set_bytes的所有组成部分的变化
+1. 这起 OOM Kill 的原因,大概率或者是说肯定是堆外内存的问题
+2. 这个堆外内存不仅仅是 Java 的堆外面,也可能是 container_memory_working_set_bytes 组成的所有部分都有可能
+3. 所以我们就开始逐一的调查和摸排 container_memory_working_set_bytes 的所有组成部分的变化
 
-# 4. container_memory_working_set_bytes在K8S源码中的探究
+# 4. container_memory_working_set_bytes 在 K8S 源码中的探究
 
 1. 首先,我们先找到这个指标的生成代码:
 
@@ -64,7 +64,7 @@ type MemoryStats struct {
 # 那就只能是继续往上面的类型找了,那就找ContainerStats,看下哪个地方有返回生成了ContainerStats
 ```
 
-3. ContainerStats的生成
+3. ContainerStats 的生成
 
 ```go
 # vender/github.com/google/cadvisor/info/v1/container.go
@@ -86,7 +86,7 @@ func (ci *ContainerInfo) StatsAfter(ref time.Time) []*ContainerStats {
 # 首先是堆ci.Stats进行遍历,找到第一个大于ref(参数时间)的就break,然后返回 ci.Stats[n:]是一个数组,就是后面的全要了
 ```
 
-4. 看下ContainerInfo这个结构体
+4. 看下 ContainerInfo 这个结构体
 
 ```go
 type ContainerInfo struct {
@@ -98,7 +98,7 @@ type ContainerInfo struct {
 # 那么问题就清晰了,看下Stats这个属性怎么生成的,查找了下,发现还是需要查找ContainerInfo是怎么设置和生成的才行
 ```
 
-5. 找寻了一大堆的代码,就在代码和Interface来回穿梭的过程中,找到了真实执行的逻辑的地方
+5. 找寻了一大堆的代码,就在代码和 Interface 来回穿梭的过程中,找到了真实执行的逻辑的地方
 
 ```go
 # vender/github.com/google/cadvisor/manager/manager.go
@@ -129,7 +129,7 @@ func (m *manager) GetRequestedContainersInfo(containerName string, options v2.Re
 # 就是去查找信息,重点是containerDataToContainerInfo这个方法
 ```
 
-6. 插句话,之所以找不到ContainerInfo如何赋值的,原因如下:
+6. 插句话,之所以找不到 ContainerInfo 如何赋值的,原因如下:
 
 ```go
 type TimedStore struct {
@@ -221,7 +221,7 @@ func setMemoryStats(s *cgroups.Stats, ret *info.ContainerStats) {
 #下面就要看看这个cgroup.Stats.MemoryStats.Usage.Usage是怎么来的
 ```
 
-9. Usage怎么计算的
+9. Usage 怎么计算的
 
 ```go
 func (m *Manager) GetStats() (*cgroups.Stats, error) {
@@ -274,3 +274,33 @@ func getMemoryDataV2(path, name string) (cgroups.MemoryData, error) {
 
 #但是问题来了,memory.current这个是怎么计算的?
 ```
+
+10. 如何查找对应 container 的内存的这些信息
+
+```bash
+1. 首先是登陆到这个Pod所在的Node上面
+2. 然后通过 kubectl get pod xxx -n xxx -o json|grep kubectl get pod cpaas-gateway-deployment-75b8ffd445-6x67k -n cp-mos -o jsonpath='{.metadata.uid}'查找到uid
+3. 进入到: /sys/fs/cgroup/kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod{上面找到的uid}.slice/
+
+4. 上面这个目录是pod级别的,你看到的所有的cgroup2的资源都是pod级别的,在这个目录下面,有一些cri-containerd-xxxx的目录,这些是container级别的
+
+5. 通过命令查看:crictl ps -a|grep pod的uid.一般会有自定义容器个数+1个containerd,因为还有一个pause隐藏容器,这个pause容器占据的内存很低:大概230KB大小的内存
+
+6. 注意在container_memory_working_set_bytes采集的是container级别,不是Pod级别,所以需要进入到具体的container中查看具体的cgroupv2资源分配
+```
+
+# 5. 内存探究
+
+## 5.1 基本概述
+
+通过上面的源码追踪,我们知道了如下的客观内容:
+
+1. 是 container_memory_working_set_bytes 这个指标引起了 OOM 的问题(待定?还未确定!)
+2. 这个指标就是 memory.current-memory.stats[inactive_file]的大小
+
+我们下面的任务就是:
+
+1. 弄清楚 inactive_file 是干什么的,怎么来的,然后如何通过命令查看
+2. memory.current 是怎么计算的,怎么来的,如何通过命令查看,和 RSS 什么关系
+
+## 5.2 开始追踪问题
