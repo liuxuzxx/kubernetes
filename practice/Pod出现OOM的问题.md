@@ -304,3 +304,6 @@ func getMemoryDataV2(path, name string) (cgroups.MemoryData, error) {
 2. memory.current 是怎么计算的,怎么来的,如何通过命令查看,和 RSS 什么关系
 
 ## 5.2 开始追踪问题
+
+1. 从 DeepSeek 的回答能够得到的信息是: memory.current > memory.max 是触发 OOM Kill 的关键
+2. 从线下的本地的 container 中的 memory.max 确实看到是是设置的 limits 的 memory 的大小,然后 memory.current 是一个单独的问题,不知道如何获取到的
