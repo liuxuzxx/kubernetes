@@ -30,6 +30,7 @@ import (
 
 // PullImage pulls an image from the network to local storage using the supplied
 // secrets if necessary.
+// 目前从方法的筛选和命令来看,发现也就是PullImage方法的实现也就是这个方法了
 func (m *kubeGenericRuntimeManager) PullImage(ctx context.Context, image kubecontainer.ImageSpec, credentials []crededentialprovider.TrackedAuthConfig, podSandboxConfig *runtimeapi.PodSandboxConfig) (string, *crededentialprovider.TrackedAuthConfig, error) {
 	logger := klog.FromContext(ctx)
 	img := image.Image

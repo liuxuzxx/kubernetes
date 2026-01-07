@@ -32,6 +32,7 @@ import (
 	"k8s.io/kubernetes/pkg/util/parsers"
 )
 
+// 我猜测和CRI进行镜像交互的地方,肯定是这个文件
 var _ ImagePullManager = &PullManager{}
 
 // writeRecordWhileMatchingLimit is a limit at which we stop writing yet-uncached
@@ -45,6 +46,10 @@ const writeRecordWhileMatchingLimit = 100
 // It tracks the credentials used with each successful pull in order to be able
 // to distinguish tenants requesting access to an image that exists on the kubelet's
 // node.
+//
+// PullManager就是拉取镜像的管理,属于业务层次的逻辑实现,具体的和CRI的实现交互镜像这块的操作的,
+// 我猜测是: kubecontainer.ImageService的实现
+// 大致看了下代码,总体的印象就是:拉取有记录,然后会做一些本地存储的记录
 type PullManager struct {
 	recordsAccessor PullRecordsAccessor
 
